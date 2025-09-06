@@ -10,31 +10,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ดาวน์โหลด aapt2.jar จาก Google Maven
+      # 1) ติดตั้ง build-tools เพื่อดึง aapt2 binary
+      - name: Install build-tools
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-34" \
+            "build-tools;34.0.0"
+
+      - name: Copy aapt2 binary
+        run: |
+          mkdir -p aapt2-bin
+          cp $ANDROID_HOME/build-tools/34.0.0/aapt2 aapt2-bin/
+          chmod +x aapt2-bin/aapt2
+          ./aapt2-bin/aapt2 version
+
+      # 2) ดาวน์โหลด aapt2.jar จาก Maven เพื่อตัว libaapt2.so
       - name: Download aapt2.jar
         run: |
-          VERSION=8.4.1-10008404   # <--- เลือกเวอร์ชันที่ต้องการ
+          VERSION=8.4.1-10008404   # เวอร์ชันล่าสุดของ aapt2 บน Maven
           echo "Downloading AAPT2 version $VERSION"
           curl -L -o aapt2.jar \
             https://dl.google.com/dl/android/maven2/com/android/tools/build/aapt2/$VERSION/aapt2-$VERSION-linux.jar
-          echo "Downloaded aapt2.jar"
 
-      # แตก aapt2 binary และ libaapt2.so
-      - name: Extract AAPT2 files
+      - name: Extract libaapt2.so
         run: |
-          mkdir -p aapt2-bin aapt2-lib
-          unzip -j aapt2.jar '*/aapt2' -d aapt2-bin
+          mkdir -p aapt2-lib
           unzip -j aapt2.jar '*/libaapt2.so' -d aapt2-lib
-          chmod +x aapt2-bin/aapt2
-          echo "Extracted files:"
-          ls -lh aapt2-bin aapt2-lib
+          ls -lh aapt2-lib
 
-      # ตรวจสอบเวอร์ชัน aapt2 (ทดสอบว่า binary ใช้งานได้)
-      - name: Check aapt2 version
-        run: |
-          ./aapt2-bin/aapt2 version || true
-
-      # อัปโหลดออกมาเป็น Artifact
+      # 3) อัปโหลดทั้ง aapt2 binary และ libaapt2.so
       - name: Upload AAPT2 artifacts
         uses: actions/upload-artifact@v4
         with:
